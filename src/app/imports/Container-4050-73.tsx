@@ -1,0 +1,84 @@
+import svgPaths from "./svg-m95nyfsysq";
+import imgImage48 from "figma:asset/aaa571bfd5c90e2ce0a79c9878bd226b9a06f380.png";
+
+function Frame1984077657() {
+  return (
+    <div className="absolute h-px left-[19.5px] top-5 w-[5px]">
+      <svg
+        className="block size-full"
+        fill="none"
+        preserveAspectRatio="none"
+        viewBox="0 0 5 1"
+      >
+        <g id="Frame 1984077657">
+          <path
+            d={svgPaths.p3c51c570}
+            fill="var(--fill-0, white)"
+            id="Vector"
+          />
+          <path
+            d={svgPaths.p24413200}
+            fill="var(--fill-0, white)"
+            id="Vector_2"
+          />
+          <path
+            d={svgPaths.p291a8e00}
+            fill="var(--fill-0, white)"
+            id="Vector_3"
+          />
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+export default function Container() {
+  return (
+    <div className="relative size-full" data-name="Container">
+      <div
+        className="absolute aspect-[64/64] bg-center bg-cover bg-no-repeat left-0 right-0 top-0"
+        data-name="image 48"
+        style={{ backgroundImage: `url('${imgImage48}')` }}
+      />
+      <div
+        className="absolute bottom-[4.464%] left-[60.714%] right-[3.571%] top-[60.714%]"
+        data-name="Vector"
+      >
+        <div className="absolute bottom-[-10.277%] left-[-10%] right-[-10%] top-[-10.256%]">
+          <svg
+            className="block size-full"
+            fill="none"
+            preserveAspectRatio="none"
+            viewBox="0 0 12 12"
+          >
+            <path
+              d={svgPaths.p104c4500}
+              fill="var(--fill-0, #FD7000)"
+              id="Vector"
+              stroke="var(--stroke-0, white)"
+            />
+          </svg>
+        </div>
+      </div>
+      <div
+        className="absolute bottom-[18.75%] left-[86.607%] right-[8.036%] top-[75.893%]"
+        data-name="Vector"
+      >
+        <svg
+          className="block size-full"
+          fill="none"
+          preserveAspectRatio="none"
+          viewBox="0 0 2 2"
+        >
+          <path
+            d={svgPaths.p13cced80}
+            fill="var(--fill-0, #FD7000)"
+            id="Vector"
+            opacity="0.3"
+          />
+        </svg>
+      </div>
+      <Frame1984077657 />
+    </div>
+  );
+}
