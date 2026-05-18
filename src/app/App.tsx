@@ -8,8 +8,9 @@ import { ChatInterface } from './components/ChatInterface';
 import { DateFilter, DateRange } from './components/DateFilter';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from './components/ui/resizable';
 import { SmartChatCategorizer } from './components/SmartChatCategorizer';
-import { PulsePage } from './components/PulsePage';
-import { DevVersionWidget, DevVersion } from './components/DevVersionWidget';
+import { PulsePage, PulseRequest } from './components/PulsePage';
+import { ContactsPage } from './components/ContactsPage';
+import { Vibe, AutomationContext, EditWatcherContext } from './components/Vibe';
 
 // Import SmartFilter interface
 interface SmartFilter {
@@ -36,6 +37,7 @@ export interface Chat {
   isOnline: boolean;
   unread: boolean;
   category: string;
+  productInterest?: string[];
 }
 
 export interface Message {
@@ -108,7 +110,8 @@ const MOCK_CHATS: Chat[] = [
     channel: 'WhatsApp',
     isOnline: true,
     unread: true,
-    category: 'Sales'
+    category: 'Sales',
+    productInterest: ['Calm Serum', 'Body Balm']
   },
   {
     id: '7',
@@ -121,7 +124,8 @@ const MOCK_CHATS: Chat[] = [
     channel: 'Instagram',
     isOnline: true,
     unread: true,
-    category: 'Sales'
+    category: 'Sales',
+    productInterest: ['Retinol Night Oil']
   },
   {
     id: '19',
@@ -173,7 +177,8 @@ const MOCK_CHATS: Chat[] = [
     channel: 'Instagram',
     isOnline: false,
     unread: true,
-    category: 'Sales'
+    category: 'Sales',
+    productInterest: ['Vitamin C Cleanser', 'Hydrating Toner']
   },
   {
     id: '4',
@@ -372,7 +377,8 @@ const MOCK_CHATS: Chat[] = [
     channel: 'WhatsApp',
     isOnline: false,
     unread: false,
-    category: 'Sales'
+    category: 'Sales',
+    productInterest: ['Calm Serum']
   },
   {
     id: '29',
@@ -426,7 +432,8 @@ const MOCK_CHATS: Chat[] = [
     channel: 'WhatsApp',
     isOnline: false,
     unread: false,
-    category: 'Sales'
+    category: 'Sales',
+    productInterest: ['Body Balm', 'Hydrating Toner', 'Eye Cream']
   },
   {
     id: '11',
@@ -493,7 +500,8 @@ const MOCK_CHATS: Chat[] = [
     channel: 'Instagram',
     isOnline: false,
     unread: false,
-    category: 'Sales'
+    category: 'Sales',
+    productInterest: ['Retinol Night Oil', 'Vitamin C Cleanser']
   },
   {
     id: '22',
@@ -506,7 +514,8 @@ const MOCK_CHATS: Chat[] = [
     channel: 'Messenger',
     isOnline: true,
     unread: false,
-    category: 'Sales'
+    category: 'Sales',
+    productInterest: ['Calm Serum', 'Body Balm', 'Retinol Night Oil']
   },
 
   // 1 week ago
@@ -578,7 +587,49 @@ const MOCK_CHATS: Chat[] = [
     isOnline: true,
     unread: true,
     category: 'Sales'
-  }
+  },
+  // New inquiries — unanswered first messages
+  {
+    id: '101',
+    name: 'Lena Fischer',
+    avatar: 'LF',
+    lastMessage: 'Hi! Do you offer same-day delivery for orders placed before noon?',
+    timestamp: '6:12 PM',
+    date: createDate(0, 18, 12),
+    status: 'Open',
+    channel: 'WhatsApp',
+    isOnline: true,
+    unread: true,
+    category: 'Sales',
+    productInterest: ['Calm Serum']
+  },
+  {
+    id: '102',
+    name: 'Omar Farooq',
+    avatar: 'OF',
+    lastMessage: "Hey, I just saw your ad. What's the price for the starter plan?",
+    timestamp: '5:58 PM',
+    date: createDate(0, 17, 58),
+    status: 'Open',
+    channel: 'Instagram',
+    isOnline: false,
+    unread: true,
+    category: 'Sales',
+    productInterest: ['Body Balm']
+  },
+  {
+    id: '103',
+    name: 'Priya Nair',
+    avatar: 'PN',
+    lastMessage: 'Hello, is this the right number for customer support?',
+    timestamp: '5:34 PM',
+    date: createDate(0, 17, 34),
+    status: 'Open',
+    channel: 'WhatsApp',
+    isOnline: true,
+    unread: true,
+    category: 'Support'
+  },
 ];
 
 // Initial mock messages for each chat
@@ -1314,6 +1365,30 @@ const INITIAL_MOCK_MESSAGES: Record<string, Message[]> = {
       sender: 'customer',
       timestamp: '10:45 AM'
     }
+  ],
+  '101': [
+    {
+      id: '1',
+      text: 'Hi! Do you offer same-day delivery for orders placed before noon?',
+      sender: 'customer',
+      timestamp: '6:12 PM'
+    }
+  ],
+  '102': [
+    {
+      id: '1',
+      text: "Hey, I just saw your ad. What's the price for the starter plan?",
+      sender: 'customer',
+      timestamp: '5:58 PM'
+    }
+  ],
+  '103': [
+    {
+      id: '1',
+      text: 'Hello, is this the right number for customer support?',
+      sender: 'customer',
+      timestamp: '5:34 PM'
+    }
   ]
 };
 
@@ -1693,14 +1768,14 @@ function useResponsiveLayout(screenSizes: ScreenSizes) {
 
   useEffect(() => {
     const { isMobile, isTablet, isDesktop } = screenSizes;
-    
+
     // Auto-collapse sidebar on mobile and tablet
     if (isMobile || isTablet) {
       setIsSidebarCollapsed(true);
     } else {
       setIsSidebarCollapsed(false);
     }
-    
+
     // Auto-hide contact info on mobile, keep open on desktop by default
     if (isMobile) {
       setIsContactInfoVisible(false);
@@ -1722,10 +1797,6 @@ export default function App() {
   // State management
   const [activePage, setActivePage] = useState<string>('Team Inbox');
 
-  const DEV_VERSIONS: DevVersion[] = [
-    { id: 'Team Inbox', label: 'Team Inbox', description: 'Main inbox' },
-    { id: 'Pulse', label: 'Pulse', description: 'Insights page' },
-  ];
   const [selectedChat, setSelectedChat] = useState<Chat>(MOCK_CHATS[0]);
   const [selectedFilter, setSelectedFilter] = useState<string>('All Chats');
   const [selectedChannel, setSelectedChannel] = useState<string>('All Channels');
@@ -1733,10 +1804,51 @@ export default function App() {
   const [messages, setMessages] = useState<Record<string, Message[]>>(INITIAL_MOCK_MESSAGES);
   const [customFilters, setCustomFilters] = useState<CustomFilter[]>([]);
   const [smartFilters, setSmartFilters] = useState<SmartFilter[]>([]);
-  const [isSmartModeActive, setIsSmartModeActive] = useState(false);
+  const [isSmartModeActive, setIsSmartModeActive] = useState(true);
+  const [activeProductFilter, setActiveProductFilter] = useState<string | null>(null);
+  const [selectedProfileKey, setSelectedProfileKey] = useState<string | null>(null);
+  const [isVibeOpen, setIsVibeOpen] = useState(false);
+  const [vibeAutomationContext, setVibeAutomationContext] = useState<AutomationContext | null>(null);
+  const [vibeEditWatcherContext, setVibeEditWatcherContext] = useState<EditWatcherContext | null>(null);
+  const [pulseRequest, setPulseRequest] = useState<PulseRequest | null>(null);
+
+  const handleOpenVibeForAutomation = useCallback((ctx: AutomationContext) => {
+    setVibeAutomationContext(ctx);
+    setVibeEditWatcherContext(null);
+    setIsVibeOpen(true);
+  }, []);
+
+  const handleEditWatcher = useCallback((ctx: EditWatcherContext) => {
+    setVibeEditWatcherContext(ctx);
+    setVibeAutomationContext(null);
+    setIsVibeOpen(true);
+  }, []);
+
+  const handleViewWatcherDetails = useCallback((watcherId: string) => {
+    setActivePage('Pulse');
+    setPulseRequest({ tab: 'workforce', watcherDetailId: watcherId });
+  }, []);
+
+  // Global ⌘K / Ctrl+K opens Vibe from anywhere
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsVibeOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
   const [bulkReplyMode, setBulkReplyMode] = useState(false);
   const [selectedChatsForBulk, setSelectedChatsForBulk] = useState<Set<string>>(new Set());
-  
+
+  // Compute signals on mount so they're always available without a manual trigger
+  useEffect(() => {
+    const generated = SmartChatCategorizer.categorizeChats(MOCK_CHATS, INITIAL_MOCK_MESSAGES);
+    setSmartFilters(generated);
+  }, []);
+
   // Custom hooks
   const screenSizes = useScreenSize();
   const {
@@ -2025,12 +2137,27 @@ export default function App() {
         {/* Pulse Page */}
         {activePage === 'Pulse' && (
           <div className="flex flex-1 min-w-0 overflow-hidden">
-            <PulsePage />
+            <PulsePage
+              onOpenVibe={() => setIsVibeOpen(true)}
+              request={pulseRequest}
+              onRequestConsumed={() => setPulseRequest(null)}
+              onEditWatcher={handleEditWatcher}
+            />
+          </div>
+        )}
+
+        {/* Contacts Page */}
+        {activePage === 'Contacts' && (
+          <div className="flex flex-1 min-w-0 overflow-hidden">
+            <ContactsPage
+              selectedProfileKey={selectedProfileKey}
+              onSelectProfile={setSelectedProfileKey}
+            />
           </div>
         )}
 
         {/* Inbox layout — hidden when another page is active */}
-        {activePage !== 'Pulse' && (
+        {activePage !== 'Pulse' && activePage !== 'Contacts' && (
           <>
         {/* Sidebar - Hidden on mobile, collapsible on tablet+ */}
         {!screenSizes.isMobile && (
@@ -2048,6 +2175,8 @@ export default function App() {
               smartFilters={smartFilters}
               isSmartModeActive={isSmartModeActive}
               onExitSmartMode={handleExitSmartMode}
+              activeProductFilter={activeProductFilter}
+              onActiveProductFilterChange={setActiveProductFilter}
             />
           </div>
         )}
@@ -2074,6 +2203,9 @@ export default function App() {
               onToggleChatSelection={handleToggleChatSelection}
               smartFilters={smartFilters}
               isSmartModeActive={isSmartModeActive}
+              activeProductFilter={activeProductFilter}
+              onOpenAutomationInVibe={handleOpenVibeForAutomation}
+              onViewWatcherDetails={handleViewWatcherDetails}
             />
           </div>
 
@@ -2119,10 +2251,14 @@ export default function App() {
                   }}
                 >
                   <div className={`h-full w-[330px] ${isContactInfoVisible ? 'block' : 'hidden'}`}>
-                    <ContactInfo 
+                    <ContactInfo
                       contact={currentContactInfo}
                       onClose={() => setIsContactInfoVisible(false)}
                       isMobile={screenSizes.isMobile}
+                      onOpenContact360={() => {
+                        setSelectedProfileKey('amira');
+                        setActivePage('Contacts');
+                      }}
                     />
                   </div>
                 </div>
@@ -2145,10 +2281,18 @@ export default function App() {
         )}
       </div>
 
-      <DevVersionWidget
-        versions={DEV_VERSIONS}
-        activeVersion={activePage}
-        onVersionChange={setActivePage}
+      {/* Global Vibe slide-over — opens via ⌘K or Pulse search input */}
+      <Vibe
+        isOpen={isVibeOpen}
+        onClose={() => {
+          setIsVibeOpen(false);
+          setVibeAutomationContext(null);
+          setVibeEditWatcherContext(null);
+        }}
+        automationContext={vibeAutomationContext}
+        onClearAutomationContext={() => setVibeAutomationContext(null)}
+        editWatcherContext={vibeEditWatcherContext}
+        onClearEditWatcherContext={() => setVibeEditWatcherContext(null)}
       />
     </div>
   );

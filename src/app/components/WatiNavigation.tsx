@@ -8,7 +8,7 @@ interface WatiNavigationProps {
 }
 
 export function WatiNavigation({ children, activeItem, onItemClick }: WatiNavigationProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   return (
     <WatiNavigationCollapsible

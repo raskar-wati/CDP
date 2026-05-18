@@ -37,6 +37,7 @@ export class SmartChatCategorizer {
       aiReplies: { chatIds: [], count: 0 },
       repeatQueries: { chatIds: [], count: 0 },
       escalated: { chatIds: [], count: 0 },
+      newInquiry: { chatIds: [], count: 0 },
       convert: { chatIds: [], count: 0 },
       churn: { chatIds: [], count: 0 },
       awaitingReply: { chatIds: [], count: 0 },
@@ -83,14 +84,16 @@ export class SmartChatCategorizer {
           wasCategorized = true;
         }
 
-        // Likely to Convert - open sales conversations
-        if (isSales && isOpen) {
+        // Likely to Convert - open sales conversations, but not stale (7+ days silent → drop off risk instead)
+        const daysSilent = (Date.now() - chat.date.getTime()) / (1000 * 60 * 60 * 24);
+        const isStale = daysSilent >= 7;
+        if (isSales && isOpen && !isStale) {
           filters.convert.chatIds.push(chat.id);
           wasCategorized = true;
         }
 
-        // Likely to Churn - old open support chats
-        if (isSupport && !isRecent) {
+        // Likely to Churn - old open support chats, OR stale Ready-to-buy that decayed
+        if ((isSupport && !isRecent) || (isSales && isOpen && isStale)) {
           filters.churn.chatIds.push(chat.id);
           wasCategorized = true;
         }
@@ -107,8 +110,16 @@ export class SmartChatCategorizer {
           wasCategorized = true;
         }
 
-        // Interested - initial engagement, asking questions, browsing
-        if (isSales && chatMessages && chatMessages.length <= 3) {
+        // New inquiry - open chat with only the first customer message, no agent reply yet
+        const isNewInquiry = isOpen && (!chatMessages || chatMessages.length <= 1 ||
+          (chatMessages.length <= 2 && chatMessages[0]?.sender === 'customer' && chatMessages.every(m => m.sender === 'customer')));
+        if (isNewInquiry) {
+          filters.newInquiry.chatIds.push(chat.id);
+          wasCategorized = true;
+        }
+
+        // Interested - initial engagement, asking questions, browsing (more than 1 msg but still early)
+        if (isSales && chatMessages && chatMessages.length > 1 && chatMessages.length <= 3) {
           filters.interested.chatIds.push(chat.id);
           wasCategorized = true;
         }
@@ -189,6 +200,16 @@ export class SmartChatCategorizer {
         chatIds: filters.awaitingReply.chatIds
       },
       // Priority 3: Buying Journey Stages
+      {
+        id: 'new-inquiry',
+        name: 'New inquiry',
+        description: 'Fresh enquiries with no agent response yet',
+        count: filters.newInquiry.chatIds.length,
+        priority: 26,
+        icon: '🆕',
+        color: 'bg-sky-50 text-sky-700',
+        chatIds: filters.newInquiry.chatIds
+      },
       {
         id: 'repeat-queries',
         name: 'Negotiating',

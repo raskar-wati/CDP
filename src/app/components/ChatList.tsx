@@ -11,6 +11,8 @@ import ConversationListUnselected from '../imports/ConversationListUnselected';
 import NewMessageIconContainer from '../imports/NewMessageIconContainer';
 import WhatsApp from '../imports/WhatsApp';
 import { AutomationSuggestionStrip } from './AutomationSuggestionStrip';
+import { WatcherCard } from './watcher/WatcherCard';
+import { buildReadyToBuyWatcher } from './watcher/readyToBuyWatcher';
 
 interface FilterSegment {
   attribute: string;
@@ -51,6 +53,7 @@ interface ChatListProps {
     isOnline: boolean;
     unread: boolean;
     category: string;
+    productInterest?: string[];
   }>;
   selectedChat: {
     id: string;
@@ -80,6 +83,9 @@ interface ChatListProps {
   onToggleChatSelection: (chatId: string) => void;
   smartFilters?: SmartFilter[];
   isSmartModeActive?: boolean;
+  activeProductFilter?: string | null;
+  onOpenAutomationInVibe?: (ctx: { filterName: string; trigger: string; action: string }) => void;
+  onViewWatcherDetails?: (watcherId: string) => void;
 }
 
 type PresetKey = 'today' | 'thisweek' | 'thismonth' | 'custom';
@@ -158,9 +164,15 @@ export function ChatList({
   selectedChatsForBulk,
   onToggleChatSelection,
   smartFilters = [],
-  isSmartModeActive = false
+  isSmartModeActive = false,
+  activeProductFilter = null,
+  onOpenAutomationInVibe,
+  onViewWatcherDetails,
 }: ChatListProps) {
   const [selectedTab, setSelectedTab] = useState('All');
+  // Per-session dismissal of the Ready-to-buy watcher card.
+  // Stays dismissed only for the session — re-renders on refresh.
+  const [isReadyToBuyWatcherDismissed, setIsReadyToBuyWatcherDismissed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -633,13 +645,30 @@ export function ChatList({
         )}
       </div>
 
-      {/* Automation suggestion strip — shown for Signal filters with enough volume */}
-      <AutomationSuggestionStrip
-        filterName={selectedFilter}
-        totalCount={chats.length}
-        handledCount={Math.max(2, Math.floor(chats.length * 0.35))}
-        isSmartModeActive={isSmartModeActive}
-      />
+      {/* Ready-to-buy watcher takes over this slot when its filter is selected.
+          Snippet variant — only header, narrative, and View details / Dismiss. */}
+      {selectedFilter === 'Ready to buy' ? (
+        !isReadyToBuyWatcherDismissed && (
+          <div className="px-3 my-2">
+            <WatcherCard
+              variant="snippet"
+              watcher={buildReadyToBuyWatcher({
+                variant: 'snippet',
+                onViewDetails: () => onViewWatcherDetails?.('ready-to-buy'),
+                onDismiss: () => setIsReadyToBuyWatcherDismissed(true),
+              })}
+            />
+          </div>
+        )
+      ) : (
+        /* Automation suggestion strip — shown for other Signal filters with enough volume */
+        <AutomationSuggestionStrip
+          filterName={selectedFilter}
+          totalCount={filteredChats.length}
+          handledCount={Math.max(2, Math.floor(filteredChats.length * 0.35))}
+          onOpenAutomationInVibe={onOpenAutomationInVibe}
+        />
+      )}
 
       {/* Chat List */}
       <div className="flex-1 overflow-y-auto">
@@ -656,6 +685,7 @@ export function ChatList({
             smartFilters={smartFilters}
             selectedFilter={selectedFilter}
             isSmartModeActive={isSmartModeActive}
+            activeProductFilter={activeProductFilter}
           />
         ))}
         

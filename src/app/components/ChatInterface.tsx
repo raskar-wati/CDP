@@ -658,6 +658,43 @@ function BulkReplyInterface({
   );
 }
 
+const MOCK_KEY_FACTS: Record<string, string[]> = {
+  // Chat IDs from App.tsx MOCK_CHATS
+  '1': ['Third order this year', 'Previously bought Body Balm twice'], // Addison Smith
+  '7': ['First-time skincare buyer', 'Budget under Rp 200k'], // Emma Rodriguez
+  '8': ['Just turned 40, asking about anti-ageing', 'Prefers Korean brands'], // Tyler Johnson
+  '19': ['Shopping for her teenage daughter', 'Pregnant, due in October'], // Isabella Garcia
+  '25': ['Has rosacea-prone skin', 'Allergic to fragrance'], // Rachel Martinez
+  '31': ['Runs a small beauty salon in Bandung', 'Asks about wholesale pricing'], // Patricia Lopez
+};
+
+function KeyFactsStrip({
+  chatId,
+  dismissed,
+  onDismiss,
+}: {
+  chatId: string;
+  dismissed: boolean;
+  onDismiss: () => void;
+}) {
+  const facts = MOCK_KEY_FACTS[chatId];
+  if (!facts || facts.length === 0 || dismissed) return null;
+  return (
+    <div className="flex items-center justify-between gap-3 bg-gray-50 px-4 lg:px-6 py-2.5">
+      <p className="text-xs text-gray-500 truncate">
+        {facts.join(' · ')}
+      </p>
+      <button
+        onClick={onDismiss}
+        aria-label="Dismiss key facts"
+        className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
 export function ChatInterface({
   selectedChat,
   messages,
@@ -677,6 +714,7 @@ export function ChatInterface({
   const [message, setMessage] = useState('');
   const [aiSuggestion, setAiSuggestion] = useState<string>('');
   const [dismissedContextStrips, setDismissedContextStrips] = useState<Set<string>>(new Set());
+  const [dismissedKeyFacts, setDismissedKeyFacts] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -847,7 +885,7 @@ export function ChatInterface({
             </div>
           </div>
         ) : (
-          <TiTopNav 
+          <TiTopNav
             onToggleContactInfo={onToggleContactInfo}
             isContactInfoVisible={isContactInfoVisible}
           />
@@ -939,21 +977,20 @@ export function ChatInterface({
         </div>
       )}
 
-      {/* CDP Context Strip - Above Input Area */}
-      {shouldShowContextStrip && (
-        <div className="flex-shrink-0 bg-gray-50 border-t border-gray-200 px-4 py-2">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-gray-500">
-              {generateCDPContext(selectedChat)}
-            </p>
-            <button
-              onClick={handleDismissContextStrip}
-              className="ml-3 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
-              title="Dismiss"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
+      {/* Key Facts strip - Above Input Area */}
+      {!bulkReplyMode && (
+        <div className="flex-shrink-0 border-t border-gray-200">
+          <KeyFactsStrip
+            chatId={selectedChat.id}
+            dismissed={dismissedKeyFacts.has(selectedChat.id)}
+            onDismiss={() =>
+              setDismissedKeyFacts(prev => {
+                const next = new Set(prev);
+                next.add(selectedChat.id);
+                return next;
+              })
+            }
+          />
         </div>
       )}
 

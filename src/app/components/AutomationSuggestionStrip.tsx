@@ -1,10 +1,25 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X } from 'lucide-react';
 
-const SIGNAL_FILTERS = ['Evaluating', 'Negotiating', 'Awaiting Reply', 'Escalated', 'Ready to buy', 'Drop off risk'];
-const DISMISSED_KEY = 'wati_automation_dismissed_filters';
-const THRESHOLD_VOLUME = 5;
-const THRESHOLD_HANDLED = 2;
+const SIGNAL_FILTERS = [
+  // Needs Action
+  'Escalated',
+  'Awaiting Reply',
+  // Journey Stage
+  'New inquiry',
+  'Interested',
+  'Evaluating',
+  'Negotiating',
+  'Ready to buy',
+  'Converted',
+  'Churned',
+  // At Risk
+  'Drop off risk',
+  'Dormant',
+];
+// Prototype thresholds — kept very low so demo always renders the card
+const THRESHOLD_VOLUME = 1;
+const THRESHOLD_HANDLED = 0;
 
 function getFilterLabel(filterName: string): string {
   const map: Record<string, string> = {
@@ -14,6 +29,11 @@ function getFilterLabel(filterName: string): string {
     'Negotiating': 'negotiating',
     'Evaluating': 'evaluating',
     'Awaiting Reply': 'awaiting-reply',
+    'New inquiry': 'new inquiry',
+    'Interested': 'interested',
+    'Converted': 'converted',
+    'Churned': 'churned',
+    'Dormant': 'dormant',
   };
   return map[filterName] || filterName.toLowerCase();
 }
@@ -26,6 +46,11 @@ function getDrawerDescription(filterName: string): string {
     'Negotiating': 'Send a follow-up with updated pricing options and a soft deadline.',
     'Evaluating': 'Send helpful product comparison information and invite them to a demo.',
     'Awaiting Reply': 'Send a gentle follow-up after 24 hours of no customer response.',
+    'New inquiry': 'Send a warm welcome with a quick intro to your top products and a route to a human if needed.',
+    'Interested': 'Send tailored product highlights based on what they asked about, with a clear next step.',
+    'Converted': 'Send a thank-you message with onboarding tips and an invite to refer a friend.',
+    'Churned': 'Send a winback offer with what\'s new since they last engaged.',
+    'Dormant': 'Send a check-in message after 30 days of silence with a small re-engagement nudge.',
   };
   return map[filterName] || 'Send an automated response tailored to this conversation stage.';
 }
@@ -38,6 +63,11 @@ function getTriggerCondition(filterName: string): string {
     'Negotiating': 'After 24 hours in "Negotiating" with no price agreement reached',
     'Evaluating': 'After 48 hours in "Evaluating" with no demo booked',
     'Awaiting Reply': 'After 24 hours with no customer response',
+    'New inquiry': 'Immediately when a new contact opens a conversation',
+    'Interested': 'When a conversation enters "Interested" and no reply has been sent in 30 minutes',
+    'Converted': 'Immediately after a conversation transitions to "Converted"',
+    'Churned': 'When a contact has been marked "Churned" for 7 days',
+    'Dormant': 'When a contact has had no activity for 30 days',
   };
   return map[filterName] || 'When a conversation matches this signal';
 }
@@ -46,23 +76,17 @@ interface AutomationSuggestionStripProps {
   filterName: string;
   totalCount: number;
   handledCount: number;
-  isSmartModeActive: boolean;
+  onOpenAutomationInVibe?: (ctx: { filterName: string; trigger: string; action: string }) => void;
 }
 
 export function AutomationSuggestionStrip({
   filterName,
   totalCount,
   handledCount,
-  isSmartModeActive,
+  onOpenAutomationInVibe,
 }: AutomationSuggestionStripProps) {
-  const [dismissedFilters, setDismissedFilters] = useState<Set<string>>(() => {
-    try {
-      const stored = localStorage.getItem(DISMISSED_KEY);
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
+  // Prototype: dismissals are in-memory only — refreshing the page restores the default state
+  const [dismissedFilters, setDismissedFilters] = useState<Set<string>>(() => new Set());
 
   const [isDismissing, setIsDismissing] = useState(false);
   const [isRemoved, setIsRemoved] = useState(false);
@@ -75,7 +99,7 @@ export function AutomationSuggestionStrip({
   const isSignalFilter = SIGNAL_FILTERS.includes(filterName);
   const meetsThreshold = totalCount >= THRESHOLD_VOLUME && handledCount >= THRESHOLD_HANDLED;
   const isDismissed = dismissedFilters.has(filterName);
-  const shouldShow = isSmartModeActive && isSignalFilter && meetsThreshold && !isDismissed;
+  const shouldShow = isSignalFilter && meetsThreshold && !isDismissed;
 
   useEffect(() => {
     setIsDismissing(false);
@@ -97,22 +121,30 @@ export function AutomationSuggestionStrip({
     (save = true) => {
       setIsDismissing(true);
       if (save) {
-        const next = new Set(dismissedFilters);
-        next.add(filterName);
-        setDismissedFilters(next);
-        try {
-          localStorage.setItem(DISMISSED_KEY, JSON.stringify([...next]));
-        } catch {}
+        setDismissedFilters((prev) => {
+          const next = new Set(prev);
+          next.add(filterName);
+          return next;
+        });
       }
       setTimeout(() => setIsRemoved(true), 320);
     },
-    [dismissedFilters, filterName]
+    [filterName]
   );
 
   const handleYesSetItUp = useCallback(() => {
+    if (onOpenAutomationInVibe) {
+      onOpenAutomationInVibe({
+        filterName,
+        trigger: getTriggerCondition(filterName),
+        action: getDrawerDescription(filterName),
+      });
+      dismiss(true);
+      return;
+    }
     setIsConfirmed(true);
     confirmTimerRef.current = setTimeout(() => dismiss(true), 4000);
-  }, [dismiss]);
+  }, [dismiss, filterName, onOpenAutomationInVibe]);
 
   const handleDrawerSave = useCallback(() => {
     setIsDrawerOpen(false);
@@ -169,7 +201,7 @@ export function AutomationSuggestionStrip({
             <p className="text-sm text-gray-700 pr-5 leading-snug">
               Got it. I'll handle {label} conversations from now on. You can review it anytime in{' '}
               <button className="text-[#23a455] underline underline-offset-2 hover:text-[#1d8f47] transition-colors">
-                Insights
+                Pulse
               </button>
               .
             </p>

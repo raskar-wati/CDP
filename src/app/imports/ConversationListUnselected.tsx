@@ -4,6 +4,7 @@ import clsx from "clsx";
 import Container1 from "./Container";
 import MessengerContainer from "./Container-4033-259";
 import SMSContainer from "./Container-4050-541";
+import { SignalValueLine } from '../components/SignalValueLine';
 
 interface SmartFilter {
   id: string;
@@ -15,6 +16,12 @@ interface SmartFilter {
   color: string;
   chatIds: string[];
 }
+
+/** Journey stage signals — the only ones that appear as pills on conversation items. */
+const JOURNEY_STAGES = new Set([
+  'New inquiry', 'Interested', 'Evaluating', 'Negotiating',
+  'Ready to buy', 'Converted', 'Churned',
+]);
 
 interface ConversationProps {
   chat: {
@@ -28,6 +35,7 @@ interface ConversationProps {
     isOnline: boolean;
     unread: boolean;
     category: string;
+    productInterest?: string[];
   };
   isSelected: boolean;
   onClick: () => void;
@@ -38,6 +46,7 @@ interface ConversationProps {
   smartFilters?: SmartFilter[];
   selectedFilter?: string;
   isSmartModeActive?: boolean;
+  activeProductFilter?: string | null;
 }
 
 function Wrapper1({ children }: React.PropsWithChildren<{}>) {
@@ -427,39 +436,41 @@ function ChatDetails({
   chat,
   selectedChannel,
   smartFilters,
-  selectedFilter,
-  isSmartModeActive
+  activeProductFilter,
 }: {
   chat: ConversationProps['chat'];
   selectedChannel?: string;
   smartFilters?: SmartFilter[];
-  selectedFilter?: string;
-  isSmartModeActive?: boolean;
+  activeProductFilter?: string | null;
 }) {
-  // Determine which single signal pill to show based on strict priority order
-  let stageName: string | undefined;
-
-  // Only show CDP pills if smart filters have been generated (length > 0)
-  if (smartFilters && smartFilters.length > 0) {
-    // Find all matching filters for this chat (excluding Uncategorised)
-    const matchingFilters = smartFilters.filter(
-      filter => filter.chatIds.includes(chat.id) && filter.name !== 'Uncategorised'
-    );
-
-    if (matchingFilters.length > 0) {
-      // Sort by priority (higher number = higher priority) and pick the top one
-      const topPriorityFilter = matchingFilters.sort((a, b) => b.priority - a.priority)[0];
-      stageName = topPriorityFilter.name;
-    }
-    // If no matching filters, stageName stays undefined (no pill shown)
-  }
-  // If smartFilters haven't been generated, stageName stays undefined and shows regular status
+  // Find the highest-priority journey stage signal for this chat
+  const journeyStage = smartFilters
+    ?.filter(f => f.chatIds.includes(chat.id) && JOURNEY_STAGES.has(f.name))
+    .sort((a, b) => b.priority - a.priority)[0]?.name;
 
   return (
     <div className="basis-0 grow min-h-px min-w-px relative shrink-0">
-      <div className="box-border content-stretch flex flex-col gap-1.5 items-start justify-start p-0 relative w-full">
+      <div className="box-border content-stretch flex flex-col gap-1 items-start justify-start p-0 relative w-full">
         <MessagePreview message={chat.lastMessage} name={chat.name} />
-        <TimeAndStatus status={chat.status} timestamp={chat.timestamp} stageName={stageName} />
+
+        {/* Pills row: journey stage + status badge on the same line */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {journeyStage && <StatusLabel status={chat.status} stageName={journeyStage} />}
+          <StatusLabel status={chat.status} />
+        </div>
+
+        {/* Product interest line — below pills, hidden when a product filter is active */}
+        {chat.productInterest && chat.productInterest.length > 0 && !activeProductFilter && (
+          <SignalValueLine label="Interested in" values={chat.productInterest} />
+        )}
+
+        {/* Timestamp — right-aligned on its own line */}
+        <div className="w-full flex justify-end">
+          <span className="font-['Inter:Regular',_sans-serif] font-normal text-[#a1a1a1] text-[12px] leading-[16px]">
+            {chat.timestamp}
+          </span>
+        </div>
+
         <ChannelFooter category={chat.category} selectedChannel={selectedChannel} />
       </div>
     </div>
@@ -476,7 +487,8 @@ export default function ConversationListUnselected({
   onToggleSelection,
   smartFilters,
   selectedFilter,
-  isSmartModeActive = false
+  isSmartModeActive = false,
+  activeProductFilter = null,
 }: ConversationProps) {
 
   const handleClick = () => {
@@ -522,8 +534,7 @@ export default function ConversationListUnselected({
             chat={chat}
             selectedChannel={selectedChannel}
             smartFilters={smartFilters}
-            selectedFilter={selectedFilter}
-            isSmartModeActive={isSmartModeActive}
+            activeProductFilter={activeProductFilter}
           />
         </div>
       </div>

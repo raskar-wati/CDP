@@ -16,6 +16,7 @@ interface ContactInfoProps {
   };
   onClose?: () => void;
   isMobile?: boolean;
+  onOpenContact360?: () => void;
 }
 
 type BackgroundImage251Props = {
@@ -968,6 +969,193 @@ function ContactDetailsAttributesContainer({
   );
 }
 
+// ── Contact Intelligence ────────────────────────────────────────────────────
+
+function SparkleIcon() {
+  return (
+    <BackgroundImage75>
+      <g id="Sparkle">
+        <path
+          d="M13 2L4.5 12.5h6L9 22l10-12h-6L13 2z"
+          fill="var(--fill-0, #848A86)"
+        />
+      </g>
+    </BackgroundImage75>
+  );
+}
+
+function IntelligenceRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <BackgroundImage162>
+      <BackgroundImage108>
+        <BackgroundImage60>
+          <div className="basis-0 grow leading-[0] min-h-px min-w-px relative shrink-0 text-muted-foreground break-words">
+            <label className="text-sm font-normal">{label}</label>
+          </div>
+        </BackgroundImage60>
+        <div className="relative flex-1 min-w-0">
+          <div className="box-border content-stretch flex flex-row gap-1 items-center justify-start p-0 relative">
+            <div className="leading-[0] relative shrink-0 text-foreground break-words">
+              {children}
+            </div>
+          </div>
+        </div>
+      </BackgroundImage108>
+    </BackgroundImage162>
+  );
+}
+
+function StagePill({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#e8f5ee] text-[#1d8242] text-xs rounded">
+      <span className="w-1.5 h-1.5 rounded-full bg-[#23a455]" />
+      {label}
+    </span>
+  );
+}
+
+function ContactDetailsIntelligenceTextContainer() {
+  return (
+    <BackgroundImage126>
+      <SparkleIcon />
+      <BackgroundImageAndText text="Contact Intelligence" />
+    </BackgroundImage126>
+  );
+}
+
+function OpenInNewIcon() {
+  return (
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M6 3h7v7M13 3L6.5 9.5M11 8.5V13H3V5h4.5"
+        stroke="#505451"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ContactDetailsIntelligenceHeader({
+  isExpanded,
+  onToggle,
+  onOpenContact360,
+}: {
+  isExpanded: boolean;
+  onToggle: () => void;
+  onOpenContact360?: () => void;
+}) {
+  return (
+    <BackgroundImage91>
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <ContactDetailsIntelligenceTextContainer />
+        {onOpenContact360 && (
+          <button
+            onClick={onOpenContact360}
+            title="Open Contact 360"
+            aria-label="Open Contact 360"
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
+          >
+            <OpenInNewIcon />
+          </button>
+        )}
+      </div>
+      <div className="cursor-pointer" onClick={onToggle}>
+        <DropdownIcon isExpanded={isExpanded} />
+      </div>
+    </BackgroundImage91>
+  );
+}
+
+function ContactDetailsIntelligenceList() {
+  return (
+    <BackgroundImage162>
+      <IntelligenceRow label="Journey stage">
+        <StagePill label="Evaluating" />
+      </IntelligenceRow>
+      <IntelligenceRow label="Sentiment">
+        <span className="inline-flex items-center gap-1">
+          <p>Recovering</p>
+          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M12 19V5M5 12l7-7 7 7"
+              stroke="#1d8242"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      </IntelligenceRow>
+      <IntelligenceRow label="Urgency">
+        <p>Medium</p>
+      </IntelligenceRow>
+      <IntelligenceRow label="Top interest">
+        <p>Vitamin C Serum</p>
+      </IntelligenceRow>
+      <IntelligenceRow label="Active blockers">
+        <p>Price, Decision maker</p>
+      </IntelligenceRow>
+      <IntelligenceRow label="Last active">
+        <p>3 days ago</p>
+      </IntelligenceRow>
+    </BackgroundImage162>
+  );
+}
+
+function ContactDetailsIntelligence({
+  isExpanded,
+  onToggle,
+  onOpenContact360,
+}: {
+  isExpanded: boolean;
+  onToggle: () => void;
+  onOpenContact360?: () => void;
+}) {
+  return (
+    <BackgroundImage180>
+      <ContactDetailsIntelligenceHeader
+        isExpanded={isExpanded}
+        onToggle={onToggle}
+        onOpenContact360={onOpenContact360}
+      />
+      {isExpanded && <ContactDetailsIntelligenceList />}
+    </BackgroundImage180>
+  );
+}
+
+function ContactDetailsIntelligenceContainer({
+  isExpanded,
+  onToggle,
+  onOpenContact360,
+}: {
+  isExpanded: boolean;
+  onToggle: () => void;
+  onOpenContact360?: () => void;
+}) {
+  return (
+    <BackgroundImage15>
+      <ContactDetailsIntelligence
+        isExpanded={isExpanded}
+        onToggle={onToggle}
+        onOpenContact360={onOpenContact360}
+      />
+    </BackgroundImage15>
+  );
+}
+
 function PriceTag() {
   return (
     <BackgroundImage75>
@@ -1106,9 +1294,10 @@ function ContactDetailsNotesContainer({
   );
 }
 
-export function ContactInfo({ contact, onClose, isMobile = false }: ContactInfoProps) {
+export function ContactInfo({ contact, onClose, isMobile = false, onOpenContact360 }: ContactInfoProps) {
   const [isContactInfoExpanded, setIsContactInfoExpanded] = useState(true);
   const [isAttributesExpanded, setIsAttributesExpanded] = useState(true);
+  const [isIntelligenceExpanded, setIsIntelligenceExpanded] = useState(true);
   const [isTagsExpanded, setIsTagsExpanded] = useState(false);
   const [isNotesExpanded, setIsNotesExpanded] = useState(false);
 
@@ -1128,12 +1317,18 @@ export function ContactInfo({ contact, onClose, isMobile = false }: ContactInfoP
             onToggle={() => setIsContactInfoExpanded(!isContactInfoExpanded)} 
           />
           <ContactDetailsPanelLineBackgroundImage />
-          <ContactDetailsAttributesContainer 
-            isExpanded={isAttributesExpanded} 
-            onToggle={() => setIsAttributesExpanded(!isAttributesExpanded)} 
+          <ContactDetailsAttributesContainer
+            isExpanded={isAttributesExpanded}
+            onToggle={() => setIsAttributesExpanded(!isAttributesExpanded)}
           />
           <ContactDetailsPanelLineBackgroundImage />
-          <ContactDetailsTagsContainer 
+          <ContactDetailsIntelligenceContainer
+            isExpanded={isIntelligenceExpanded}
+            onToggle={() => setIsIntelligenceExpanded(!isIntelligenceExpanded)}
+            onOpenContact360={onOpenContact360}
+          />
+          <ContactDetailsPanelLineBackgroundImage />
+          <ContactDetailsTagsContainer
             isExpanded={isTagsExpanded} 
             onToggle={() => setIsTagsExpanded(!isTagsExpanded)} 
           />
