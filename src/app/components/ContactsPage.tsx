@@ -411,7 +411,7 @@ function SignalMark({ className = 'w-3.5 h-3.5' }: { className?: string }) {
     <span
       title="Extracted from signals"
       aria-label="Extracted from signals"
-      className="inline-flex items-center justify-center flex-shrink-0 text-[#7c3aed]"
+      className="inline-flex items-center justify-center flex-shrink-0 text-[#848A86]"
     >
       <Sparkles className={className} strokeWidth={2.25} />
     </span>

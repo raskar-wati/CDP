@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Sparkles } from 'lucide-react';
 import svgPaths from "../imports/svg-igbqms1wb4";
 import clsx from "clsx";
 import imgFlag from "figma:asset/cb2758ed1f7b6efb95b7f6bf90672aac0488acae.png";
@@ -972,22 +973,14 @@ function ContactDetailsAttributesContainer({
 // ── Contact Intelligence ────────────────────────────────────────────────────
 
 function SparkleIcon() {
-  // 4-point sparkle + small accent — same #848A86 grey and 24×24 viewBox
-  // as the other section icons, so Contact Intelligence reads as
-  // "AI-extracted insights" without breaking the row's icon rhythm.
+  // Same Lucide Sparkles glyph used everywhere else as the signal marker
+  // (SignalMark in ContactsPage/Contact360), rendered at the shared
+  // 24×24 section-header size in #848A86 grey — so the Contact
+  // Intelligence header reads identically to inline signal indicators.
   return (
-    <BackgroundImage75>
-      <g id="Sparkle">
-        <path
-          d="M11 3.5 12.3 10.4 19.5 11.7 12.3 13 11 19.9 9.7 13 2.5 11.7 9.7 10.4 11 3.5Z"
-          fill="var(--fill-0, #848A86)"
-        />
-        <path
-          d="M18.5 14.5 19 16.5 21 17 19 17.5 18.5 19.5 18 17.5 16 17 18 16.5 18.5 14.5Z"
-          fill="var(--fill-0, #848A86)"
-        />
-      </g>
-    </BackgroundImage75>
+    <div className="size-6 flex items-center justify-center text-[#848A86] shrink-0">
+      <Sparkles className="w-5 h-5" strokeWidth={2} />
+    </div>
   );
 }
 
@@ -1105,7 +1098,34 @@ function ContactDetailsIntelligenceHeader({
   );
 }
 
-function ContactDetailsIntelligenceList() {
+/** Subheading divider rendered inside the Contact Intelligence row list.
+ *  Visually bifurcates the list into the AI-derived signals at the top
+ *  and the Shopify-sourced order context at the bottom. */
+function IntelligenceSubheading({
+  label,
+  trailing,
+}: {
+  label: string;
+  trailing?: React.ReactNode;
+}) {
+  return (
+    <div className="w-full flex items-center gap-1.5 mt-1">
+      <span className="text-[10px] uppercase tracking-wider text-[#848A86] font-medium">
+        {label}
+      </span>
+      {trailing}
+    </div>
+  );
+}
+
+function ContactDetailsIntelligenceList({
+  contact,
+}: {
+  contact: ContactInfoProps['contact'];
+}) {
+  const ctx = getOrderContext(contact);
+  const order = ctx?.lastOrder;
+
   return (
     <BackgroundImage162>
       <IntelligenceRow label="Journey stage">
@@ -1140,15 +1160,73 @@ function ContactDetailsIntelligenceList() {
       <IntelligenceRow label="Last active">
         <p>3 days ago</p>
       </IntelligenceRow>
+
+      {/* Order Context — same accordion, divided by a small subheading.
+          Only renders if Shopify is connected (ctx is non-null). */}
+      {ctx && (
+        <>
+          <IntelligenceSubheading
+            label="Order Context"
+            trailing={<ShopifyMark className="w-3 h-3" />}
+          />
+          <IntelligenceRow label="Total orders">
+            <p>{ctx.totalOrders}</p>
+          </IntelligenceRow>
+          <IntelligenceRow label="Lifetime spend">
+            <p>{ctx.lifetimeSpend}</p>
+          </IntelligenceRow>
+          <IntelligenceRow label="Avg order value">
+            <p>{ctx.averageOrderValue}</p>
+          </IntelligenceRow>
+          {order && (
+            <>
+              <IntelligenceRow label="Last order">
+                <a href="#" className="text-[#1d8242] hover:underline">
+                  #{order.number}
+                </a>
+              </IntelligenceRow>
+              <IntelligenceRow label="Status">
+                <p>{order.status}</p>
+              </IntelligenceRow>
+              <IntelligenceRow label="Order date">
+                <p>{order.date}</p>
+              </IntelligenceRow>
+              <IntelligenceRow label="Order total">
+                <p>{order.total}</p>
+              </IntelligenceRow>
+              {order.shipping && (
+                <IntelligenceRow label="Tracking">
+                  <a
+                    href={order.shipping.trackingUrl}
+                    className="text-[#1d8242] hover:underline"
+                  >
+                    {order.shipping.trackingNumber}
+                  </a>
+                </IntelligenceRow>
+              )}
+            </>
+          )}
+          {ctx.cart && (
+            <IntelligenceRow label="Cart status">
+              <p>
+                {ctx.cart.state === 'abandoned' ? 'Abandoned' : 'Active'} ·{' '}
+                {ctx.cart.total}
+              </p>
+            </IntelligenceRow>
+          )}
+        </>
+      )}
     </BackgroundImage162>
   );
 }
 
 function ContactDetailsIntelligence({
+  contact,
   isExpanded,
   onToggle,
   onOpenContact360,
 }: {
+  contact: ContactInfoProps['contact'];
   isExpanded: boolean;
   onToggle: () => void;
   onOpenContact360?: () => void;
@@ -1160,16 +1238,18 @@ function ContactDetailsIntelligence({
         onToggle={onToggle}
         onOpenContact360={onOpenContact360}
       />
-      {isExpanded && <ContactDetailsIntelligenceList />}
+      {isExpanded && <ContactDetailsIntelligenceList contact={contact} />}
     </BackgroundImage180>
   );
 }
 
 function ContactDetailsIntelligenceContainer({
+  contact,
   isExpanded,
   onToggle,
   onOpenContact360,
 }: {
+  contact: ContactInfoProps['contact'];
   isExpanded: boolean;
   onToggle: () => void;
   onOpenContact360?: () => void;
@@ -1177,6 +1257,7 @@ function ContactDetailsIntelligenceContainer({
   return (
     <BackgroundImage15>
       <ContactDetailsIntelligence
+        contact={contact}
         isExpanded={isExpanded}
         onToggle={onToggle}
         onOpenContact360={onOpenContact360}
@@ -1422,132 +1503,10 @@ function getOrderContext(contact: ContactInfoProps['contact']): OrderContext | n
   return ORDER_CONTEXTS[key] ?? ORDER_CONTEXTS.default ?? null;
 }
 
-function PackageGlyph() {
-  // Box / parcel icon — provided 16×16 SVG, wrapped in the shared
-  // BackgroundImage75 (24×24 viewBox) and uniformly scaled 1.5× so it
-  // sits at the same visual weight, baseline, and #848A86 grey as the
-  // other section icons (Sparkle, PriceTag, Task) in the panel.
-  return (
-    <BackgroundImage75>
-      <g id="Package" transform="scale(1.5)">
-        <path
-          fillRule="evenodd"
-          clipRule="evenodd"
-          d="M6.92306 1.37867C7.61627 1.11206 8.38373 1.11206 9.07694 1.37867L14.0385 3.28696C14.6178 3.50976 15 4.06632 15 4.68697V11.3134C15 11.934 14.6178 12.4906 14.0385 12.7134L9.07694 14.6217C8.38373 14.8883 7.61627 14.8883 6.92306 14.6217L1.96153 12.7134C1.38224 12.4906 1 11.934 1 11.3134V4.68697C1 4.06632 1.38224 3.50976 1.96153 3.28696L6.92306 1.37867ZM8.71796 2.31202C8.25582 2.13427 7.74418 2.13427 7.28204 2.31202L5.89757 2.84451L11.4885 4.96107L13.4357 4.12655L8.71796 2.31202ZM14 4.9727L8.5 7.32984V13.7581C8.5736 13.7391 8.64637 13.7159 8.71796 13.6883L13.6795 11.78C13.8726 11.7058 14 11.5203 14 11.3134V4.9727ZM7.5 13.7581V7.32984L2 4.9727V11.3134C2 11.5203 2.12741 11.7058 2.32051 11.78L7.28204 13.6883C7.35363 13.7159 7.4264 13.7391 7.5 13.7581ZM2.56425 4.12655L8 6.45616L10.1638 5.52882L4.49652 3.38337L2.56425 4.12655Z"
-          fill="var(--fill-0, #848A86)"
-        />
-      </g>
-    </BackgroundImage75>
-  );
-}
-
-function ContactDetailsOrderTextContainer() {
-  return (
-    <BackgroundImage126>
-      <PackageGlyph />
-      <BackgroundImageAndText text="Order Context" />
-      <ShopifyMark className="w-3.5 h-3.5" />
-    </BackgroundImage126>
-  );
-}
-
-function ContactDetailsOrderHeader({
-  isExpanded,
-  onToggle,
-}: {
-  isExpanded: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <BackgroundImage91>
-      <ContactDetailsOrderTextContainer />
-      <div className="cursor-pointer" onClick={onToggle}>
-        <DropdownIcon isExpanded={isExpanded} />
-      </div>
-    </BackgroundImage91>
-  );
-}
-
-function ContactDetailsOrderList({ ctx }: { ctx: OrderContext }) {
-  const order = ctx.lastOrder;
-  return (
-    <BackgroundImage162>
-      <IntelligenceRow label="Total orders">
-        <p>{ctx.totalOrders}</p>
-      </IntelligenceRow>
-      <IntelligenceRow label="Lifetime spend">
-        <p>{ctx.lifetimeSpend}</p>
-      </IntelligenceRow>
-      <IntelligenceRow label="Avg order value">
-        <p>{ctx.averageOrderValue}</p>
-      </IntelligenceRow>
-      {order && (
-        <>
-          <IntelligenceRow label="Last order">
-            <a href="#" className="text-[#1d8242] hover:underline">
-              #{order.number}
-            </a>
-          </IntelligenceRow>
-          <IntelligenceRow label="Status">
-            <p>{order.status}</p>
-          </IntelligenceRow>
-          <IntelligenceRow label="Order date">
-            <p>{order.date}</p>
-          </IntelligenceRow>
-          <IntelligenceRow label="Order total">
-            <p>{order.total}</p>
-          </IntelligenceRow>
-          {order.shipping && (
-            <IntelligenceRow label="Tracking">
-              <a
-                href={order.shipping.trackingUrl}
-                className="text-[#1d8242] hover:underline"
-              >
-                {order.shipping.trackingNumber}
-              </a>
-            </IntelligenceRow>
-          )}
-        </>
-      )}
-      {ctx.cart && (
-        <IntelligenceRow label="Cart status">
-          <p>
-            {ctx.cart.state === 'abandoned' ? 'Abandoned' : 'Active'} · {ctx.cart.total}
-          </p>
-        </IntelligenceRow>
-      )}
-    </BackgroundImage162>
-  );
-}
-
-function ContactDetailsOrderContext({
-  contact,
-  isExpanded,
-  onToggle,
-}: {
-  contact: ContactInfoProps['contact'];
-  isExpanded: boolean;
-  onToggle: () => void;
-}) {
-  const ctx = getOrderContext(contact);
-  // If the contact has no Shopify connection at all, the section is hidden
-  // entirely so we don't show empty Shopify scaffolding for non-Shopify
-  // merchants. `null` from getOrderContext = no Shopify data.
-  if (!ctx) return null;
-
-  return (
-    <BackgroundImage180>
-      <ContactDetailsOrderHeader isExpanded={isExpanded} onToggle={onToggle} />
-      {isExpanded && <ContactDetailsOrderList ctx={ctx} />}
-    </BackgroundImage180>
-  );
-}
-
 export function ContactInfo({ contact, onClose, isMobile = false, onOpenContact360 }: ContactInfoProps) {
   const [isContactInfoExpanded, setIsContactInfoExpanded] = useState(true);
   const [isAttributesExpanded, setIsAttributesExpanded] = useState(true);
   const [isIntelligenceExpanded, setIsIntelligenceExpanded] = useState(true);
-  const [isOrderExpanded, setIsOrderExpanded] = useState(true);
   const [isTagsExpanded, setIsTagsExpanded] = useState(false);
   const [isNotesExpanded, setIsNotesExpanded] = useState(false);
 
@@ -1573,15 +1532,10 @@ export function ContactInfo({ contact, onClose, isMobile = false, onOpenContact3
           />
           <ContactDetailsPanelLineBackgroundImage />
           <ContactDetailsIntelligenceContainer
+            contact={contact}
             isExpanded={isIntelligenceExpanded}
             onToggle={() => setIsIntelligenceExpanded(!isIntelligenceExpanded)}
             onOpenContact360={onOpenContact360}
-          />
-          <ContactDetailsPanelLineBackgroundImage />
-          <ContactDetailsOrderContext
-            contact={contact}
-            isExpanded={isOrderExpanded}
-            onToggle={() => setIsOrderExpanded(!isOrderExpanded)}
           />
           <ContactDetailsPanelLineBackgroundImage />
           <ContactDetailsTagsContainer
