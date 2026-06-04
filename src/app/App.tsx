@@ -1825,8 +1825,8 @@ export default function App() {
   }, []);
 
   const handleViewWatcherDetails = useCallback((watcherId: string) => {
-    setActivePage('Pulse');
-    setPulseRequest({ tab: 'workforce', watcherDetailId: watcherId });
+    setActivePage('Workforce');
+    setPulseRequest({ tab: 'agent-feed', agentDetailId: watcherId });
   }, []);
 
   // Global ⌘K / Ctrl+K opens Vibe from anywhere
@@ -2135,7 +2135,7 @@ export default function App() {
         )}
 
         {/* Pulse Page */}
-        {activePage === 'Pulse' && (
+        {activePage === 'Workforce' && (
           <div className="flex flex-1 min-w-0 overflow-hidden">
             <PulsePage
               onOpenVibe={() => setIsVibeOpen(true)}
@@ -2157,7 +2157,7 @@ export default function App() {
         )}
 
         {/* Inbox layout — hidden when another page is active */}
-        {activePage !== 'Pulse' && activePage !== 'Contacts' && (
+        {activePage !== 'Workforce' && activePage !== 'Contacts' && (
           <>
         {/* Sidebar - Hidden on mobile, collapsible on tablet+ */}
         {!screenSizes.isMobile && (
@@ -2206,6 +2206,7 @@ export default function App() {
               activeProductFilter={activeProductFilter}
               onOpenAutomationInVibe={handleOpenVibeForAutomation}
               onViewWatcherDetails={handleViewWatcherDetails}
+              onEditWatcher={handleEditWatcher}
             />
           </div>
 

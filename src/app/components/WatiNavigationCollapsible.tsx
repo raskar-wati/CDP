@@ -175,7 +175,7 @@ export function WatiNavigationCollapsible({ isCollapsed, onToggleCollapse, activ
   const menuItems = [
     { icon: (active: boolean) => <CampaignsIcon />, label: 'Campaigns' },
     { icon: (active: boolean) => <TeamInboxIcon />, label: 'Team Inbox', defaultActive: true },
-    { icon: (active: boolean) => <PulseIcon isActive={active} />, label: 'Pulse', badge: 2 },
+    { icon: (active: boolean) => <PulseIcon isActive={active} />, label: 'Workforce', badge: 2 },
     { icon: (active: boolean) => <ContactsIcon />, label: 'Contacts' },
     { icon: (active: boolean) => <AutomationsIcon />, label: 'Automations' },
     { icon: (active: boolean) => <CommerceIcon />, label: 'Commerce' },

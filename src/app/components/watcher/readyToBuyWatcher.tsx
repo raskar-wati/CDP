@@ -64,7 +64,7 @@ export function buildReadyToBuyWatcher(opts?: ReadyToBuyOpts): Watcher {
   const variant = opts?.variant ?? 'full';
   return {
     id: 'ready-to-buy',
-    name: 'Ready-to-buy watcher',
+    name: 'Ready-to-buy Agent',
     prompt: PROMPT,
     freshness: 'fresh',
     timestamp: 'Updated 12 minutes ago',
@@ -95,10 +95,9 @@ export function buildReadyToBuyWatcher(opts?: ReadyToBuyOpts): Watcher {
         : variant === 'preview'
         ? []
         : [
-            { label: 'Always do this', variant: 'tertiary', onClick: opts?.onAlwaysDoThis },
-            { label: 'Snooze 30 min', variant: 'secondary', onClick: opts?.onSnooze },
-            { label: 'Send all 6 drafted replies', variant: 'primary', onClick: opts?.onSendAll },
-            { label: 'Dismiss', variant: 'dismiss', onClick: opts?.onDismiss },
+            { label: 'Withdraw Agent', variant: 'outlined', onClick: opts?.onDismiss },
+            { label: 'Bulk Reply', variant: 'outlined', onClick: opts?.onSendAll },
+            { label: 'Edit Agent', variant: 'outlined', onClick: opts?.onAlwaysDoThis },
           ],
   };
 }

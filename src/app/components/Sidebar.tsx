@@ -7,6 +7,16 @@ import { SmartFilter } from './SmartChatCategorizer';
 import { FilterPopover, FilterOption } from './FilterPopover';
 import { SignalPreferencesDrawer } from './SignalPreferencesDrawer';
 
+// Flat list of buckets surfaced by deployed agents — appears in the
+// sidebar's "Agent View" section. Order here is the display order.
+const AGENT_VIEW_ITEMS: { name: string; count: number }[] = [
+  { name: 'Ready to buy',     count: 32 },
+  { name: 'Demand Spike',     count: 12 },
+  { name: 'No-show risk',     count: 1  },
+  { name: 'Risk of churning', count: 8  },
+  { name: 'Potential Spam',   count: 6  },
+];
+
 const PRODUCT_FILTERS: FilterOption[] = [
   { name: 'Calm Serum', count: 28 },
   { name: 'Body Balm', count: 19 },
@@ -605,10 +615,10 @@ export function Sidebar({
           </div>
         </div>
 
-        {/* Signals — always visible once computed, grouped by tier */}
+        {/* Agent View — flat list of named agent buckets */}
         {smartFilters.length > 0 && (
           <div className="border-b border-gray-200 px-4 py-3 flex-1 overflow-y-auto">
-            {/* Header row: "Signals" label + three control icons */}
+            {/* Header row: "Agent View" label + three control icons */}
             <div className="flex items-center justify-between mb-1 px-2">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Signals</p>
               <div className="flex items-center gap-1">
@@ -679,54 +689,25 @@ export function Sidebar({
               </div>
             )}
 
-            {[
-              {
-                label: 'Needs Action',
-                names: ['Escalated', 'Awaiting Reply'],
-              },
-              {
-                label: 'Journey Stage',
-                names: ['New inquiry', 'Interested', 'Evaluating', 'Negotiating', 'Ready to buy', 'Converted', 'Churned'],
-              },
-              {
-                label: 'At Risk',
-                names: ['Drop off risk', 'Dormant'],
-              },
-              {
-                label: 'Unclassified',
-                names: ['Uncategorised'],
-              },
-            ].map(({ label, names }) => {
-              const groupFilters = smartFilters.filter(
-                f => names.includes(f.name) && f.count > 0 && !hiddenSignals.has(f.name)
-              );
-              if (groupFilters.length === 0) return null;
-              return (
-                <div key={label} className="mb-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-300 mb-1 px-2">{label}</p>
-                  <div className="space-y-0.5">
-                    {groupFilters
-                      .sort((a, b) => names.indexOf(a.name) - names.indexOf(b.name))
-                      .map((filter) => (
-                        <button
-                          key={filter.id}
-                          onClick={() => handleFilterClick(filter.name)}
-                          className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-sm transition-colors ${
-                            selectedFilter === filter.name
-                              ? 'bg-green-50 text-green-700 font-medium'
-                              : 'hover:bg-gray-50 text-gray-700'
-                          }`}
-                        >
-                          <span className="whitespace-nowrap">{filter.name}</span>
-                          <Badge variant="secondary" className="text-xs w-6 h-5 flex items-center justify-center">
-                            {filter.count.toString().padStart(2, '0')}
-                          </Badge>
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              );
-            })}
+            {/* Flat Agent View list — hardcoded buckets surfaced by the deployed agents */}
+            <div className="space-y-0.5">
+              {AGENT_VIEW_ITEMS.filter((item) => !hiddenSignals.has(item.name)).map((item) => (
+                <button
+                  key={item.name}
+                  onClick={() => handleFilterClick(item.name)}
+                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded-md text-sm transition-colors ${
+                    selectedFilter === item.name
+                      ? 'bg-green-50 text-green-700 font-medium'
+                      : 'hover:bg-gray-50 text-gray-700'
+                  }`}
+                >
+                  <span className="whitespace-nowrap">{item.name}</span>
+                  <Badge variant="secondary" className="text-xs min-w-6 h-5 px-1.5 flex items-center justify-center">
+                    {item.count}
+                  </Badge>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

@@ -91,7 +91,7 @@ export function buildTopTopicsWatcher(opts?: TopTopicsOpts): Watcher {
 
   return {
     id: 'top-topics',
-    name: 'Top topics watcher',
+    name: 'Top topics Agent',
     prompt: PROMPT,
     freshness: isAging ? 'aging' : 'fresh',
     timestamp: isAging
@@ -125,10 +125,8 @@ export function buildTopTopicsWatcher(opts?: TopTopicsOpts): Watcher {
         : variant === 'preview'
         ? []
         : [
-            { label: 'Snooze until next Monday', variant: 'tertiary', onClick: opts?.onSnoozeUntilNextMonday },
-            { label: 'Refresh with current data', variant: 'secondary', onClick: opts?.onRefresh },
-            { label: 'Open full digest', variant: 'primary', onClick: opts?.onOpenFullDigest },
-            { label: 'Dismiss', variant: 'dismiss', onClick: opts?.onDismiss },
+            { label: 'Withdraw Agent', variant: 'outlined', onClick: opts?.onDismiss },
+            { label: 'Edit Agent', variant: 'outlined', onClick: opts?.onSnoozeUntilNextMonday },
           ],
   };
 }

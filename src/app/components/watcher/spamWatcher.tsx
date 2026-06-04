@@ -45,7 +45,7 @@ export function buildSpamWatcher(opts?: SpamOpts): Watcher {
   const variant = opts?.variant ?? 'full';
   return {
     id: 'spam',
-    name: 'Spam watcher',
+    name: 'Spam Agent',
     prompt: PROMPT,
     freshness: 'fresh',
     timestamp: 'Updated 4 hours ago',
@@ -106,10 +106,8 @@ export function buildSpamWatcher(opts?: SpamOpts): Watcher {
         : variant === 'preview'
         ? []
         : [
-            { label: 'Always do this for similar patterns', variant: 'tertiary', onClick: opts?.onAlwaysDoSimilar },
-            { label: 'Review filtered messages', variant: 'secondary', onClick: opts?.onReviewFiltered },
-            { label: 'Block all crypto promos', variant: 'primary', onClick: opts?.onBlockAllCrypto },
-            { label: 'Dismiss', variant: 'dismiss', onClick: opts?.onDismiss },
+            { label: 'Withdraw Agent', variant: 'outlined', onClick: opts?.onDismiss },
+            { label: 'Edit Agent', variant: 'outlined', onClick: opts?.onAlwaysDoSimilar },
           ],
   };
 }

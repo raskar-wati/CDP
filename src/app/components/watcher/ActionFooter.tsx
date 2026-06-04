@@ -19,10 +19,11 @@ export function ActionFooter({ actions }: ActionFooterProps) {
   const primary = actions.filter((a) => a.variant === 'primary');
   const secondary = actions.filter((a) => a.variant === 'secondary');
   const tertiary = actions.filter((a) => a.variant === 'tertiary');
+  const outlined = actions.filter((a) => a.variant === 'outlined');
   const dismiss = actions.filter((a) => a.variant === 'dismiss');
 
   return (
-    <div className="flex items-center justify-end gap-4 px-4 py-4 border-t border-gray-100">
+    <div className="flex items-center justify-end gap-3 px-4 py-4 border-t border-gray-100">
       {tertiary.map((a) => (
         <button
           key={a.label}
@@ -37,6 +38,15 @@ export function ActionFooter({ actions }: ActionFooterProps) {
           key={a.label}
           onClick={a.onClick}
           className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          {a.label}
+        </button>
+      ))}
+      {outlined.map((a) => (
+        <button
+          key={a.label}
+          onClick={a.onClick}
+          className="px-3.5 py-1.5 bg-white border border-[#23a455] text-[#23a455] text-sm font-medium rounded-md hover:bg-[#ebf7f0] transition-colors"
         >
           {a.label}
         </button>

@@ -11,8 +11,8 @@ import ConversationListUnselected from '../imports/ConversationListUnselected';
 import NewMessageIconContainer from '../imports/NewMessageIconContainer';
 import WhatsApp from '../imports/WhatsApp';
 import { AutomationSuggestionStrip } from './AutomationSuggestionStrip';
-import { WatcherCard } from './watcher/WatcherCard';
 import { buildReadyToBuyWatcher } from './watcher/readyToBuyWatcher';
+import { ReadyToBuyNudge } from './ReadyToBuyNudge';
 
 interface FilterSegment {
   attribute: string;
@@ -86,6 +86,7 @@ interface ChatListProps {
   activeProductFilter?: string | null;
   onOpenAutomationInVibe?: (ctx: { filterName: string; trigger: string; action: string }) => void;
   onViewWatcherDetails?: (watcherId: string) => void;
+  onEditWatcher?: (ctx: { id: string; name: string; prompt: string }) => void;
 }
 
 type PresetKey = 'today' | 'thisweek' | 'thismonth' | 'custom';
@@ -168,6 +169,7 @@ export function ChatList({
   activeProductFilter = null,
   onOpenAutomationInVibe,
   onViewWatcherDetails,
+  onEditWatcher,
 }: ChatListProps) {
   const [selectedTab, setSelectedTab] = useState('All');
   // Per-session dismissal of the Ready-to-buy watcher card.
@@ -315,9 +317,6 @@ export function ChatList({
 
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* Natural Language Filter */}
-      <NaturalLanguageFilter onFilterApply={handleNaturalLanguageFilter} />
-      
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-white transition-all duration-300 ease-in-out">
         {!isSearchExpanded ? (
@@ -645,18 +644,19 @@ export function ChatList({
         )}
       </div>
 
-      {/* Ready-to-buy watcher takes over this slot when its filter is selected.
-          Snippet variant — only header, narrative, and View details / Dismiss. */}
+      {/* Ready-to-buy Agent nudge takes over this slot when its filter is selected. */}
       {selectedFilter === 'Ready to buy' ? (
         !isReadyToBuyWatcherDismissed && (
           <div className="px-3 my-2">
-            <WatcherCard
-              variant="snippet"
-              watcher={buildReadyToBuyWatcher({
-                variant: 'snippet',
-                onViewDetails: () => onViewWatcherDetails?.('ready-to-buy'),
-                onDismiss: () => setIsReadyToBuyWatcherDismissed(true),
-              })}
+            <ReadyToBuyNudge
+              leadCount={32}
+              pipelineValue="₹47,000"
+              onDismiss={() => setIsReadyToBuyWatcherDismissed(true)}
+              onViewAgent={() => onViewWatcherDetails?.('ready-to-buy')}
+              onEditAgent={() => {
+                const w = buildReadyToBuyWatcher();
+                onEditWatcher?.({ id: w.id, name: w.name, prompt: w.prompt });
+              }}
             />
           </div>
         )

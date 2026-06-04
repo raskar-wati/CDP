@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { Send, Inbox, ChevronLeft, Rocket, Settings, Clock, Database, CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { Send, Rocket, Settings, Clock, Database, CheckCircle2 } from 'lucide-react';
 import { WatcherCard } from './watcher/WatcherCard';
 import { buildReadyToBuyWatcher } from './watcher/readyToBuyWatcher';
 import { buildTopTopicsWatcher } from './watcher/topTopicsWatcher';
@@ -7,15 +7,16 @@ import { buildSpamWatcher } from './watcher/spamWatcher';
 import { buildDemandSpikeWatcher } from './watcher/demandSpikeWatcher';
 import { TEMPLATE_WATCHERS } from './watcher/templates';
 import type { Watcher } from './watcher/types';
+import { WEEKLY_DIGEST, type ImpactStat, type NotableMoment } from './weeklyDigest';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-export type PulseTab = 'workforce' | 'insights' | 'handoffs';
+export type PulseTab = 'overview' | 'agent-feed' | 'activity';
 
 export interface PulseRequest {
   tab: PulseTab;
-  /** When set on a workforce-tab request, opens the detail view for this watcher. */
-  watcherDetailId?: string;
+  /** When set on an agent-feed request, expands and scrolls to this agent. */
+  agentDetailId?: string;
 }
 
 type PatternActionVariant = 'primary' | 'secondary' | 'tertiary';
@@ -137,7 +138,7 @@ const PATTERN_CARDS: PatternCard[] = [
 interface TabDef {
   id: PulseTab;
   label: string;
-  count: number;
+  count?: number;
 }
 
 function TabNav({
@@ -159,18 +160,20 @@ function TabNav({
             onClick={() => onChange(t.id)}
             className={`relative pb-3 pt-1 flex items-center gap-2 text-sm transition-colors ${
               isActive
-                ? 'text-gray-900 font-medium'
+                ? 'text-[#23a455] font-medium'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             {t.label}
-            <span
-              className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-                isActive ? 'bg-[#ebf7f0] text-[#1d8242]' : 'bg-gray-100 text-gray-500'
-              }`}
-            >
-              {t.count}
-            </span>
+            {typeof t.count === 'number' && (
+              <span
+                className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                  isActive ? 'bg-[#ebf7f0] text-[#1d8242]' : 'bg-gray-100 text-gray-500'
+                }`}
+              >
+                {t.count}
+              </span>
+            )}
             {isActive && (
               <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-[#23a455]" />
             )}
@@ -292,7 +295,7 @@ interface SuggestedWatcherDef {
 const SUGGESTED_WATCHER_DEFS: SuggestedWatcherDef[] = [
   {
     id: 'spam',
-    name: 'Spam & junk filter',
+    name: 'Spam Agent',
     tagline: 'Silently routes spam and junk away from your team queue',
     rule: 'Detects repetitive messages, suspicious links, and known spam patterns in incoming conversations — then routes them away before they ever reach your team.',
     access: ['Incoming message content', 'Sender history', 'Contact blocklist'],
@@ -310,7 +313,7 @@ const SUGGESTED_WATCHER_DEFS: SuggestedWatcherDef[] = [
   },
   {
     id: 'ready-to-buy',
-    name: 'Ready-to-buy watcher',
+    name: 'Ready-to-buy Agent',
     tagline: 'Surfaces sales leads most likely to convert right now',
     rule: 'Monitors open sales conversations and scores them for purchase intent based on message language, product questions asked, and engagement recency. Surfaces the hottest leads at the top of your inbox.',
     access: ['Conversation history', 'Contact properties', 'Product catalogue'],
@@ -328,7 +331,7 @@ const SUGGESTED_WATCHER_DEFS: SuggestedWatcherDef[] = [
   },
   {
     id: 'top-topics',
-    name: 'Top topics watcher',
+    name: 'Top topics Agent',
     tagline: 'Surfaces recurring themes across all your conversations',
     rule: 'Scans all incoming conversations every 2 hours to identify recurring themes, product mentions, and emerging complaints — so you always know what your customers are really talking about.',
     access: ['All conversation content', 'Tags & labels', 'Contact segments'],
@@ -346,7 +349,7 @@ const SUGGESTED_WATCHER_DEFS: SuggestedWatcherDef[] = [
   },
   {
     id: 'demand-spike',
-    name: 'Demand spike detector',
+    name: 'Demand spike Agent',
     tagline: 'Alerts you before conversation volume overloads your team',
     rule: 'Watches conversation volume across all channels in real time. When incoming messages spike beyond your normal baseline — from a campaign, viral post, or seasonal rush — it alerts you before queues overflow.',
     access: ['Conversation volume metrics', 'Channel data', 'Historical baselines'],
@@ -523,156 +526,141 @@ function ActiveWatcherPreviewCard({
   );
 }
 
-// ── Workforce tab — builds the full / preview / detail views ──────────────
+// ── Agent Feed tab — collapsed rows for every deployed agent; click to expand inline ──
 
-function WorkforceTab({
+function AgentFeedTab({
   enabledIds,
-  detailId,
-  onOpenDetail,
-  onBackToList,
-  onDeployWatcher,
+  expandedIds,
+  onToggleExpanded,
+  onWithdrawAgent,
   topTopicsState,
   onTopTopicsStateChange,
   onEditWatcher,
 }: {
   enabledIds: Set<string>;
-  detailId: string | null;
-  onOpenDetail: (id: string) => void;
-  onBackToList: () => void;
-  onDeployWatcher: (id: string) => void;
+  expandedIds: Set<string>;
+  onToggleExpanded: (id: string) => void;
+  onWithdrawAgent: (id: string) => void;
   topTopicsState: 'fresh' | 'aging';
   onTopTopicsStateChange: (s: 'fresh' | 'aging') => void;
   onEditWatcher?: (ctx: { id: string; name: string; prompt: string }) => void;
 }) {
-  // Resolve a watcher id to its Watcher object (for detail view only).
-  const buildWatcher = (
-    id: string,
-    variant: 'full' | 'preview',
-    handlers?: { onViewDetails?: () => void }
-  ): Watcher | null => {
-    if (id === 'ready-to-buy') return buildReadyToBuyWatcher({ variant, ...handlers });
-    if (id === 'top-topics') return buildTopTopicsWatcher({ variant, state: topTopicsState, ...handlers });
-    if (id === 'demand-spike') return buildDemandSpikeWatcher({ variant, ...handlers });
-    if (id === 'spam') return buildSpamWatcher({ variant, ...handlers });
+  const buildWatcher = (id: string): Watcher | null => {
+    if (id === 'ready-to-buy') return buildReadyToBuyWatcher({ variant: 'full', onDismiss: () => onWithdrawAgent(id) });
+    if (id === 'top-topics') return buildTopTopicsWatcher({ variant: 'full', state: topTopicsState, onDismiss: () => onWithdrawAgent(id) });
+    if (id === 'demand-spike') return buildDemandSpikeWatcher({ variant: 'full', onDismiss: () => onWithdrawAgent(id) });
+    if (id === 'spam') return buildSpamWatcher({ variant: 'full', onDismiss: () => onWithdrawAgent(id) });
     const template = TEMPLATE_WATCHERS.find((t) => t.id === id);
-    return template ? template.build({ variant, ...handlers }) : null;
+    return template ? template.build({ variant: 'full' }) : null;
   };
 
-  // ── Detail view ────────────────────────────────────────────────────────
-  if (detailId) {
-    const watcher = buildWatcher(detailId, 'full');
-    if (!watcher) {
-      return (
-        <div className="text-sm text-gray-500">
-          That watcher isn't available.
-          <button onClick={onBackToList} className="ml-2 underline">Back</button>
-        </div>
-      );
-    }
+  const agentDefs = SUGGESTED_WATCHER_DEFS.filter((d) => enabledIds.has(d.id));
+
+  if (agentDefs.length === 0) {
     return (
-      <div className="space-y-4">
-        <button
-          onClick={onBackToList}
-          className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Back to Workforce
-        </button>
-        {detailId === 'top-topics' && (
-          <TopTopicsDevToggle state={topTopicsState} onChange={onTopTopicsStateChange} />
-        )}
+      <div className="flex flex-col items-center justify-center py-16 text-center bg-white border border-dashed border-gray-200 rounded-xl">
+        <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+          <Rocket className="w-5 h-5 text-gray-400" strokeWidth={1.75} />
+        </div>
+        <p className="text-sm font-medium text-gray-700">No agents deployed yet</p>
+        <p className="text-xs text-gray-500 mt-1 max-w-xs leading-relaxed">
+          Hire an agent to start monitoring your inbox automatically.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Dev-only freshness toggle for Top Topics */}
+      {enabledIds.has('top-topics') && (
+        <TopTopicsDevToggle state={topTopicsState} onChange={onTopTopicsStateChange} />
+      )}
+
+      {agentDefs.map((def) => {
+        const isExpanded = expandedIds.has(def.id);
+        const watcher = buildWatcher(def.id);
+        if (!watcher) return null;
+
+        return (
+          <AgentFeedRow
+            key={def.id}
+            watcher={watcher}
+            isExpanded={isExpanded}
+            onToggle={() => onToggleExpanded(def.id)}
+            onEdit={onEditWatcher}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+// ── A single row in the Agent Feed: collapsed = header+narrative; expanded = full WatcherCard
+
+function AgentFeedRow({
+  watcher,
+  isExpanded,
+  onToggle,
+  onEdit,
+}: {
+  watcher: Watcher;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onEdit?: (ctx: { id: string; name: string; prompt: string }) => void;
+}) {
+  if (isExpanded) {
+    return (
+      <div id={`agent-${watcher.id}`} className="scroll-mt-4">
         <WatcherCard
           watcher={watcher}
-          cardId={`watcher-${detailId}`}
-          onEdit={onEditWatcher}
+          cardId={`watcher-${watcher.id}`}
+          onCardClick={onToggle}
+          onEdit={onEdit}
         />
       </div>
     );
   }
 
-  // ── List view: Active watchers + Suggested watchers ───────────────────
-
-  const activeWatcherDefs = SUGGESTED_WATCHER_DEFS.filter((d) => enabledIds.has(d.id));
-  const suggestedWatcherDefs = SUGGESTED_WATCHER_DEFS.filter((d) => !enabledIds.has(d.id));
-
+  // Collapsed row — agent header + narrative paragraph only (no metric/table/footer).
   return (
-    <div className="space-y-8">
-      {/* Dev-only freshness toggle for Top Topics (only when active) */}
-      {enabledIds.has('top-topics') && (
-        <TopTopicsDevToggle state={topTopicsState} onChange={onTopTopicsStateChange} />
-      )}
-
-      {/* Active Watchers — operational stats view */}
-      <section>
-        <SectionHeading label="Active Watchers" count={activeWatcherDefs.length} />
-        {activeWatcherDefs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center bg-white border border-dashed border-gray-200 rounded-xl">
-            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-              <Rocket className="w-4 h-4 text-gray-400" strokeWidth={1.75} />
-            </div>
-            <p className="text-sm font-medium text-gray-700">No active watchers yet</p>
-            <p className="text-xs text-gray-500 mt-1 max-w-xs leading-relaxed">
-              Deploy a suggested watcher below to start monitoring your inbox automatically.
-            </p>
+    <div
+      id={`agent-${watcher.id}`}
+      role="button"
+      tabIndex={0}
+      onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
+      className="scroll-mt-4 bg-white border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:border-gray-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#23a455]/30"
+    >
+      {/* Header — agent dot, name, freshness chip, right-aligned timestamp */}
+      <div className="flex items-start gap-2.5 px-4 py-3 border-b border-gray-100">
+        <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center gap-[3px] shrink-0">
+          <span className="w-[3px] h-[3px] rounded-full bg-white" />
+          <span className="w-[3px] h-[3px] rounded-full bg-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="text-sm font-semibold text-gray-900 leading-tight">{watcher.name}</span>
+            {watcher.freshness === 'fresh' && (
+              <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#23a455]" />
+                fresh
+              </span>
+            )}
           </div>
-        ) : (
-          <div className="space-y-3">
-            {activeWatcherDefs.map((def) => (
-              <ActiveWatcherPreviewCard
-                key={def.id}
-                def={def}
-                onViewDetails={() => onOpenDetail(def.id)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+        </div>
+        <span className="text-xs text-gray-400 shrink-0">{watcher.timestamp}</span>
+      </div>
 
-      {/* Suggested Watchers — full WatcherCard demo view with Deploy CTA */}
-      {suggestedWatcherDefs.length > 0 && (
-        <section>
-          <SectionHeading label="Suggested Watchers" count={suggestedWatcherDefs.length} />
-          <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-            Ready-to-deploy watchers built for your inbox. Each one runs autonomously once you deploy it.
-          </p>
-          <div className="space-y-3">
-            {suggestedWatcherDefs.map((def) => {
-              // Build full watcher but replace actions with "Deploy Watcher"
-              const watcher = buildWatcher(def.id, 'full');
-              if (!watcher) return null;
-              const deployableWatcher = {
-                ...watcher,
-                actions: [
-                  {
-                    label: 'Deploy Watcher',
-                    variant: 'primary' as const,
-                    onClick: () => onDeployWatcher(def.id),
-                  },
-                ],
-              };
-              return (
-                <WatcherCard
-                  key={def.id}
-                  watcher={deployableWatcher}
-                  variant="full"
-                />
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {suggestedWatcherDefs.length === 0 ? (
-        <p className="text-xs text-gray-400 pt-2">
-          All suggested watchers are deployed. Add a custom watcher via Vibe — type{' '}
-          <span className="italic">&ldquo;watch for…&rdquo;</span>
-        </p>
-      ) : (
-        <p className="text-xs text-gray-400 pt-2">
-          Add a custom watcher via Vibe — just type{' '}
-          <span className="italic">&ldquo;watch for…&rdquo;</span>
-        </p>
-      )}
+      {/* Narrative paragraph */}
+      <div className="px-4 py-3">
+        <p className="text-sm text-gray-700 leading-relaxed">{watcher.narrative}</p>
+      </div>
     </div>
   );
 }
@@ -683,57 +671,83 @@ export function PulsePage({
   onRequestConsumed,
   onEditWatcher,
 }: PulsePageProps = {}) {
-  const [tab, setTab] = useState<PulseTab>('workforce');
-  // Active watcher ids — starts empty; watchers are promoted from
-  // Suggested → Active when the user clicks "Deploy Watcher".
+  const [tab, setTab] = useState<PulseTab>('agent-feed');
+  // Deployed agents — all 4 seeded by default. The "Hire Agent" flow
+  // (built in a later step) adds more; "Withdraw Agent" removes one.
   const [enabledWatcherIds, setEnabledWatcherIds] = useState<Set<string>>(
-    () => new Set<string>()
+    () => new Set<string>(SUGGESTED_WATCHER_DEFS.map((d) => d.id))
   );
-  // The Workforce sub-view: null = list, string = detail page for that watcher
-  const [workforceDetailId, setWorkforceDetailId] = useState<string | null>(null);
+  // Which agent rows are expanded inline in the Agent Feed.
+  const [expandedFeedIds, setExpandedFeedIds] = useState<Set<string>>(() => new Set());
   // Dev-only toggle for Top Topics freshness state.
   const [topTopicsState, setTopTopicsState] = useState<'fresh' | 'aging'>('fresh');
 
-  // React to external navigation requests (inbox snippet → Pulse)
+  const toggleExpanded = useCallback((id: string) => {
+    setExpandedFeedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  // React to external navigation requests (e.g. inbox snippet → "View details")
   useEffect(() => {
     if (!request) return;
     setTab(request.tab);
-    if (request.tab === 'workforce') {
-      setWorkforceDetailId(request.watcherDetailId ?? null);
+    if (request.tab === 'agent-feed' && request.agentDetailId) {
+      const id = request.agentDetailId;
+      setExpandedFeedIds((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+      // Defer scroll until the agent row is mounted.
+      requestAnimationFrame(() => {
+        document.getElementById(`agent-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
     }
     onRequestConsumed?.();
   }, [request]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // When the user switches AWAY from Workforce, reset the detail view so
-  // returning lands back on the list.
-  useEffect(() => {
-    if (tab !== 'workforce') setWorkforceDetailId(null);
-  }, [tab]);
-
   const tabs: TabDef[] = useMemo(
     () => [
-      { id: 'workforce', label: 'Workforce', count: SUGGESTED_WATCHER_DEFS.length },
-      { id: 'insights', label: 'Insights', count: PATTERN_CARDS.length },
-      { id: 'handoffs', label: 'Handoffs', count: 0 },
+      { id: 'overview', label: 'Overview' },
+      { id: 'agent-feed', label: 'Agent Feed' },
+      { id: 'activity', label: 'Activity' },
     ],
     []
   );
 
   return (
     <div className="flex flex-col h-full w-full bg-[#F6F7F6] overflow-hidden">
-      {/* Page header */}
+      {/* Page header — title + subtitle on the left, Hire Agent + gear on the right */}
       <div className="px-8 pt-8 pb-4 shrink-0">
-        <div className="max-w-[960px] mx-auto w-full">
-          <h1 className="text-2xl font-semibold text-gray-900 leading-tight">Pulse</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Your AI workforce — what they&apos;re doing, what they noticed, what needs you
-          </p>
+        <div className="max-w-[960px] mx-auto w-full flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold text-gray-900 leading-tight">Workforce</h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Your AI workforce — what the agents are doing, what they noticed, what needs you
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border border-[#23a455] text-[#23a455] bg-white hover:bg-[#ebf7f0] transition-colors"
+            >
+              Hire Agent
+            </button>
+            <button
+              type="button"
+              aria-label="Workforce settings"
+              className="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:text-gray-800 hover:border-gray-300 transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Sticky Vibe + tabs region — outer gutter (px-8) lives on each row's
-          wrapper, with a max-w-[960px] inner column. Same pattern as the
-          page header and tab content below, so everything left-aligns. */}
+      {/* Vibe input + tab strip */}
       <div className="shrink-0 bg-[#F6F7F6] border-b border-gray-200">
         <div className="px-8 pt-4 pb-3">
           <div className="max-w-[960px] mx-auto w-full relative">
@@ -742,7 +756,7 @@ export function PulsePage({
               readOnly
               onClick={() => onOpenVibe?.()}
               onFocus={() => onOpenVibe?.()}
-              placeholder="Ask anything about your customers — try 'why did response times drop?' or 'who's ready to buy?'"
+              placeholder="Ask anything about your business"
               className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none cursor-pointer transition-colors hover:border-gray-300"
             />
             <button
@@ -763,16 +777,17 @@ export function PulsePage({
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto px-8 py-6">
         <div className="max-w-[960px] mx-auto w-full">
-          {tab === 'workforce' && (
-            <WorkforceTab
+          {tab === 'overview' && <OverviewTab />}
+
+          {tab === 'agent-feed' && (
+            <AgentFeedTab
               enabledIds={enabledWatcherIds}
-              detailId={workforceDetailId}
-              onOpenDetail={setWorkforceDetailId}
-              onBackToList={() => setWorkforceDetailId(null)}
-              onDeployWatcher={(id) =>
+              expandedIds={expandedFeedIds}
+              onToggleExpanded={toggleExpanded}
+              onWithdrawAgent={(id) =>
                 setEnabledWatcherIds((prev) => {
                   const next = new Set(prev);
-                  next.add(id);
+                  next.delete(id);
                   return next;
                 })
               }
@@ -782,17 +797,146 @@ export function PulsePage({
             />
           )}
 
-          {tab === 'insights' && (
-            <div className="space-y-3">
-              {PATTERN_CARDS.map((card) => (
-                <PatternCardView key={card.id} {...card} />
-              ))}
-            </div>
-          )}
-
-          {tab === 'handoffs' && <HandoffsEmpty />}
+          {tab === 'activity' && <ActivityStub />}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Tab stubs ──────────────────────────────────────────────────────────────
+
+// ── Overview tab — weekly digest, read-only ──────────────────────────────
+
+function OverviewTab() {
+  const digest = WEEKLY_DIGEST;
+  return (
+    <div className="space-y-6">
+      {/* Date range header */}
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+          Weekly digest
+        </p>
+        <h2 className="text-lg font-semibold text-gray-900 leading-tight mt-1">
+          {digest.dateRange}
+        </h2>
+        <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+          {digest.subtitle}
+        </p>
+      </div>
+
+      {/* Business impact strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {digest.impactStats.map((stat) => (
+          <ImpactTile key={stat.label} stat={stat} />
+        ))}
+      </div>
+
+      {/* Weekly digest — each section is its own card */}
+      <div className="space-y-3">
+        <DigestCard title="Top questions this week">
+          <ul className="space-y-2">
+            {digest.topQuestions.map((q) => (
+              <li key={q.question} className="flex items-baseline gap-2 text-sm">
+                <span className="text-gray-900 font-medium">&ldquo;{q.question}&rdquo;</span>
+                <span className="text-gray-500">— {q.count} askers</span>
+                <span className={`text-xs ${trendClass(q.trendTone)}`}>({q.trend})</span>
+              </li>
+            ))}
+          </ul>
+        </DigestCard>
+
+        <DigestCard title="Trending product mentions">
+          <ul className="space-y-2">
+            {digest.productMentions.map((m) => (
+              <li key={m.product} className="flex items-baseline gap-2 text-sm">
+                <span className="text-gray-900">{m.product}</span>
+                <span className={`font-semibold ${trendClass(m.tone)}`}>{m.delta}</span>
+                <span className="text-xs text-gray-500">— {m.context}</span>
+              </li>
+            ))}
+          </ul>
+        </DigestCard>
+
+        <DigestCard title="Notable moments">
+          <div className="space-y-4">
+            {digest.notableMoments.map((moment) => (
+              <NotableMomentBlock key={moment.id} moment={moment} />
+            ))}
+          </div>
+        </DigestCard>
+      </div>
+    </div>
+  );
+}
+
+function trendClass(tone: 'positive' | 'negative' | 'muted'): string {
+  if (tone === 'positive') return 'text-[#1d8242]';
+  if (tone === 'negative') return 'text-[#d82307]';
+  return 'text-gray-500';
+}
+
+// ── Stat tile in the Overview impact strip ───────────────────────────────
+
+function ImpactTile({ stat }: { stat: ImpactStat }) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 leading-tight">
+        {stat.label}
+      </p>
+      <div className="mt-2 flex items-baseline gap-2 flex-wrap">
+        <span className="text-2xl font-semibold text-gray-900 leading-none">{stat.value}</span>
+        <span className={`text-xs font-medium ${trendClass(stat.deltaTone)}`}>{stat.delta}</span>
+      </div>
+      <p className="text-xs text-gray-500 mt-2 leading-snug">{stat.context}</p>
+    </div>
+  );
+}
+
+// ── A standalone card section in the weekly digest ───────────────────────
+
+function DigestCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg px-5 py-4">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-3">
+        {title}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+// ── Notable moment block with "Make this an Agent" CTA ──────────────────
+
+function NotableMomentBlock({ moment }: { moment: NotableMoment }) {
+  return (
+    <div>
+      <p className="text-sm font-medium text-gray-900 leading-snug">{moment.headline}</p>
+      <p className="text-sm text-gray-600 mt-1 leading-relaxed">{moment.body}</p>
+      <button
+        type="button"
+        className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-[#23a455] hover:text-[#1d8f47] transition-colors"
+      >
+        Make this an Agent
+        <span aria-hidden>→</span>
+      </button>
+    </div>
+  );
+}
+
+function ActivityStub() {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center bg-white border border-dashed border-gray-200 rounded-xl">
+      <h3 className="text-sm font-medium text-gray-700">Activity coming next</h3>
+      <p className="text-xs text-gray-500 mt-1 max-w-xs leading-relaxed">
+        Audit log of every agent action — for compliance and traceability.
+      </p>
     </div>
   );
 }

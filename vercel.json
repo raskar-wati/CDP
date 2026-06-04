@@ -1,0 +1,5 @@
+{
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "installCommand": "pnpm install --no-frozen-lockfile",
+  "buildCommand": "pnpm build"
+}

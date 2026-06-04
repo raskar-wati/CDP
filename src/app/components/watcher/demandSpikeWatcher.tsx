@@ -58,7 +58,7 @@ export function buildDemandSpikeWatcher(opts?: DemandSpikeOpts): Watcher {
   const variant = opts?.variant ?? 'full';
   return {
     id: 'demand-spike',
-    name: 'Demand spike watcher',
+    name: 'Demand spike Agent',
     prompt: PROMPT,
     freshness: 'fresh',
     timestamp: 'Updated 2 hours ago',
@@ -90,10 +90,8 @@ export function buildDemandSpikeWatcher(opts?: DemandSpikeOpts): Watcher {
         : variant === 'preview'
         ? []
         : [
-            { label: 'Always draft a stock update on future 4× spikes', variant: 'tertiary', onClick: opts?.onAlwaysDraftStockUpdate },
-            { label: 'Send only to 3 high-intent', variant: 'secondary', onClick: opts?.onSendToHighIntent },
-            { label: 'Send stock-status broadcast to 31 contacts', variant: 'primary', onClick: opts?.onBroadcastAll },
-            { label: 'Dismiss', variant: 'dismiss', onClick: opts?.onDismiss },
+            { label: 'Withdraw Agent', variant: 'outlined', onClick: opts?.onDismiss },
+            { label: 'Edit Agent', variant: 'outlined', onClick: opts?.onAlwaysDraftStockUpdate },
           ],
   };
 }

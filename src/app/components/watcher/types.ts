@@ -11,7 +11,7 @@ export type FreshnessState =
 
 // ── Action affordances (footer) ────────────────────────────────────────────
 
-export type ActionVariant = 'primary' | 'secondary' | 'tertiary' | 'dismiss';
+export type ActionVariant = 'primary' | 'secondary' | 'tertiary' | 'dismiss' | 'outlined';
 
 export interface WatcherAction {
   label: string;
